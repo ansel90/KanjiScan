@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализатор японской грамматики</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #f39c12;
+            --danger-color: #e74c3c;
+            --success-color: #27ae60;
+            --dark-bg: #2c3e50;
+            --light-bg: #ecf0f1;
+            --card-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--light-bg);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background-color: var(--dark-bg);
+            color: white;
+            transition: all 0.3s;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background-color: rgba(0,0,0,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-item {
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255,255,255,0.1);
+            border-left-color: var(--primary-color);
+        }
+
+        .nav-item.active {
+            background-color: rgba(255,255,255,0.15);
+            border-left-color: var(--secondary-color);
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Mobile navbar */
+        .mobile-navbar {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background-color: var(--dark-bg);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 1001;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        .mobile-navbar .navbar-title {
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-left: 15px;
+            flex: 1;
+        }
+
+        /* Mobile menu toggle */
+        .menu-toggle {
+            background: transparent;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            transition: background-color 0.3s;
+        }
+
+        .menu-toggle:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            padding: 20px;
+            transition: margin-left 0.3s;
+        }
+        
+        /* Add padding-top for mobile to avoid navbar overlap */
+        @media (max-width: 768px) {
+            .main-content {
+                padding-top: 76px;
+            }
+            
+            .mobile-navbar {
+                display: flex;
+            }
+        }
+
+        .page {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Upload area */
+        .upload-area {
+            border: 2px dashed var(--primary-color);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            background-color: rgba(74, 144, 226, 0.05);
+        }
+
+        .upload-area:hover {
+            border-color: var(--secondary-color);
+            background-color: rgba(243, 156, 18, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--success-color);
+            background-color: rgba(39, 174, 96, 0.1);
+        }
+
+        /* Word cards */
+        .word-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .word-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .word-card.selected {
+            background-color: rgba(74, 144, 226, 0.1);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .word-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--dark-bg);
+            margin-bottom: 10px;
+        }
+
+        .word-translation {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .word-example {
+            background-color: var(--light-bg);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            background-color: #3a7bc8;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            border: none;
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            border: none;
+        }
+
+        /* Floating action buttons */
+        .fab-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top: 3px solid var(--primary-color);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+        }
+
+        .custom-toast {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .menu-toggle {
+                display: block;
+            }
+            
+            .word-card {
+                padding: 15px;
+            }
+            
+            .fab-container {
+                bottom: 70px;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3a7bc8;
+        }
+
+        /* Image preview */
+        .image-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            margin: 20px auto;
+            display: block;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+
+        /* Checkbox wrapper */
+        .checkbox-wrapper {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .custom-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        /* Settings form */
+        .settings-group {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .settings-group h5 {
+            margin-bottom: 20px;
+            color: var(--dark-bg);
+            border-bottom: 2px solid var(--light-bg);
+            padding-bottom: 10px;
+        }
+
+        /* Infinite scroll loader */
+        .scroll-loader {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .scroll-loader.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-navbar">
+        <button class="menu-toggle" onclick="app.toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="navbar-title" id="navbarTitle">Загрузка</div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fas fa-language"></i> Грамматика</h3>
+            </div>
+            <div class="nav-menu">
+                <div class="nav-item active" onclick="app.switchPage('upload')">
+                    <i class="fas fa-upload"></i>
+                    <span>Загрузка</span>
+                </div>
+                <div class="nav-item" onclick="app.switchPage('dictionary')">
+                    <i class="fas fa-book"></i>
+                    <span>Словарь</span>
+                </div>
+                <div class="nav-item" onclick="app.switchPage('settings')">
+                    <i class="fas fa-cog"></i>
+                    <span>Настройки</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Page -->
+            <div class="page active" id="uploadPage">
+                <div class="container-fluid">
+                    <h2 class="mb-4">Загрузка изображения</h2>
+                    
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                                <i class="fas fa-cloud-upload-alt fa-3x mb-3" style="color: var(--primary-color);"></i>
+                                <h4>Перетащите изображение сюда</h4>
+                                <p class="text-muted">или нажмите для выбора файла</p>
+                                <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="app.handleFileSelect(event)">
+                            </div>
+                            
+                            <div id="imagePreviewContainer" style="display: none;">
+                                <img id="imagePreview" class="image-preview" alt="Preview">
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-primary" onclick="app.analyzeImage()">
+                                        <i class="fas fa-paper-plane"></i> Анализировать
+                                    </button>
+                                    <button class="btn btn-secondary ms-2" onclick="app.clearImage()">
+                                        <i class="fas fa-times"></i> Очистить
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="loadingContainer" style="display: none;">
+                                <div class="spinner"></div>
+                                <p class="text-center text-muted">Анализируем изображение...</p>
+                            </div>
+                            
+                            <div id="resultPreview" style="display: none;" class="mt-4">
+                                <h5>Результат анализа</h5>
+                                <div id="resultContent"></div>
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-success" onclick="app.saveResults()">
+                                        <i class="fas fa-save"></i> Сохранить в словарь
+                                    </button>
+                                    <button class="btn btn-secondary ms-2" onclick="app.downloadResults()">
+                                        <i class="fas fa-download"></i> Скачать CSV
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dictionary Page -->
+            <div class="page" id="dictionaryPage">
+                <div class="container-fluid">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>Словарь</h2>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="app.selectAll()">
+                                <i class="fas fa-check-square"></i> Выделить всё
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="app.deselectAll()">
+                                <i class="fas fa-square"></i> Снять выделение
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="dictionaryContent">
+                        <div class="empty-state">
+                            <i class="fas fa-book-open"></i>
+                            <h4>Словарь пуст</h4>
+                            <p>Загрузите изображение на странице "Загрузка" для анализа японского текста</p>
+                        </div>
+                    </div>
+                    
+                    <div class="scroll-loader" id="scrollLoader">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+                
+                <!-- Floating Action Buttons -->
+                <div class="fab-container" id="fabContainer" style="display: none;">
+                    <button class="fab btn-danger" onclick="app.deleteSelected()" title="Удалить выбранное">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="fab btn-success" onclick="app.downloadSelected()" title="Скачать выбранное">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div class="page" id="settingsPage">
+                <div class="container-fluid">
+                    <h2 class="mb-4">Настройки</h2>
+                    
+                    <div class="settings-group">
+                        <h5><i class="fas fa-plug"></i> API Настройки</h5>
+                        <form id="settingsForm">
+                            <div class="mb-3">
+                                <label for="apiEndpoint" class="form-label">API Endpoint</label>
+                                <input type="url" class="form-control" id="apiEndpoint" 
+                                       placeholder="https://api.openai.com/v1/chat/completions">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="apiModel" class="form-label">Модель</label>
+                                <input type="text" class="form-control" id="apiModel" 
+                                       placeholder="gpt-4o">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="apiKey" class="form-label">API Ключ</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="apiKey" 
+                                           placeholder="sk-...">
+                                    <button class="btn btn-outline-secondary" type="button" 
+                                            onclick="app.toggleApiKeyVisibility()">
+                                        <i class="fas fa-eye" id="apiKeyToggle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-primary" onclick="app.saveSettings()">
+                                    <i class="fas fa-save"></i> Сохранить
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="app.testConnection()">
+                                    <i class="fas fa-plug"></i> Проверить соединение
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <h5><i class="fas fa-info-circle"></i> О приложении</h5>
+                        <p>Анализатор японской грамматики v1.0</p>
+                        <p class="text-muted">Используйте это приложение для анализа японского текста на изображениях и создания персонального словаря.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Storage Interface
+        class StorageInterface {
+            async save(key, data) { throw new Error('Not implemented'); }
+            async load(key) { throw new Error('Not implemented'); }
+            async remove(key) { throw new Error('Not implemented'); }
+            async clear() { throw new Error('Not implemented'); }
+        }
+
+        // LocalStorage implementation
+        class LocalStorageAdapter extends StorageInterface {
+            async save(key, data) {
+                try {
+                    const serialized = JSON.stringify(data);
+                    const size = new Blob([serialized]).size;
+                    
+                    // Check storage limit (5MB warning)
+                    if (size > 5 * 1024 * 1024) {
+                        app.showToast('Предупреждение: Размер данных приближается к лимиту хранилища', 'warning');
+                    }
+                    
+                    localStorage.setItem(key, serialized);
+                    return true;
+                } catch (e) {
+                    if (e.name === 'QuotaExceededError') {
+                        app.showToast('Хранилище переполнено! Удалите старые записи.', 'error');
+                    }
+                    return false;
+                }
+            }
+            
+            async load(key) {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : null;
+            }
+            
+            async remove(key) {
+                localStorage.removeItem(key);
+            }
+            
+            async clear() {
+                localStorage.clear();
+            }
+        }
+
+        // Export Interface
+        class ExportInterface {
+            async export(data, filename) { throw new Error('Not implemented'); }
+        }
+
+        // CSV Exporter
+        class CSVExporter extends ExportInterface {
+            async export(data, filename = 'dictionary.csv') {
+                const headers = ['Слово/Конструкция', 'Перевод/Объяснение', 'Пример в контексте'];
+                const rows = data.map(item => [
+                    item.construction,
+                    item.explanation,
+                    item.example
+                ]);
+                
+                const csvContent = [headers, ...rows]
+                    .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+                    .join('\n');
+                
+                const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        // API Interface
+        class APIInterface {
+            async analyze(image, settings) { throw new Error('Not implemented'); }
+            async testConnection(settings) { throw new Error('Not implemented'); }
+        }
+
+        // OpenAI API implementation
+        class OpenAIAdapter extends APIInterface {
+            constructor() {
+                super();
+                this.prompt = `Проанализируй японский текст на изображении и извлеки все грамматические конструкции, слова и выражения. 
+                
+Верни результат ТОЛЬКО в формате JSON массива без дополнительных символов или комментариев.
+Запрещено использовать символ "\`" и любые markdown форматирования.
+
+Формат ответа:
+[
+  {
+    "construction": "японское слово или конструкция",
+    "explanation": "перевод на русский и грамматическое объяснение",
+    "example": "пример использования в контексте с объяснением почему именно так используется"
+  }
+]
+
+Извлеки ВСЕ уникальные слова, грамматические конструкции, устойчивые выражения.
+Ответ должен содержать ТОЛЬКО валидный JSON массив.`;
+            }
+            
+            async analyze(imageBase64, settings) {
+                const response = await fetch(settings.endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${settings.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: settings.model,
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'text', text: this.prompt },
+                                { type: 'image_url', image_url: { url: imageBase64 } }
+                            ]
+                        }],
+                        max_tokens: 4000,
+                        temperature: 0.3
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const content = data.choices[0].message.content;
+                
+                try {
+                    return JSON.parse(content);
+                } catch (e) {
+                    throw new Error(`Invalid JSON response: ${content}`);
+                }
+            }
+            
+            async testConnection(settings) {
+                const response = await fetch(settings.endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${settings.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: settings.model,
+                        messages: [{ role: 'user', content: 'test' }],
+                        max_tokens: 5
+                    })
+                });
+                
+                return response.ok;
+            }
+        }
+
+        // Main Application
+        class GrammarAnalyzerApp {
+            constructor() {
+                this.storage = new LocalStorageAdapter();
+                this.exporter = new CSVExporter();
+                this.api = new OpenAIAdapter();
+                
+                this.currentPage = 'upload';
+                this.currentImage = null;
+                this.currentResults = null;
+                this.dictionary = [];
+                this.selectedItems = new Set();
+                this.displayedItems = 0;
+                this.itemsPerPage = 30;
+                
+                this.init();
+            }
+            
+            async init() {
+                // Load settings
+                const settings = await this.storage.load('settings');
+                if (settings) {
+                    document.getElementById('apiEndpoint').value = settings.endpoint;
+                    document.getElementById('apiModel').value = settings.model;
+                    document.getElementById('apiKey').value = settings.apiKey;
+                } else {
+                    // Set defaults
+                    document.getElementById('apiEndpoint').value = 'https://api.openai.com/v1/chat/completions';
+                    document.getElementById('apiModel').value = 'gpt-4o';
+                }
+                
+                // Load dictionary
+                this.dictionary = (await this.storage.load('dictionary')) || [];
+                
+                // Setup event listeners
+                this.setupEventListeners();
+                
+                // Initial render
+                this.renderDictionary();
+            }
+            
+            setupEventListeners() {
+                // Drag and drop
+                const uploadArea = document.getElementById('uploadArea');
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+                
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+                
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleFile(files[0]);
+                    }
+                });
+                
+                // Infinite scroll
+                window.addEventListener('scroll', () => {
+                    if (this.currentPage === 'dictionary' && this.dictionary.length > this.displayedItems) {
+                        const scrollHeight = document.documentElement.scrollHeight;
+                        const scrollTop = document.documentElement.scrollTop;
+                        const clientHeight = document.documentElement.clientHeight;
+                        
+                        if (scrollTop + clientHeight >= scrollHeight - 100) {
+                            this.loadMoreItems();
+                        }
+                    }
+                });
+            }
+            
+            // Page navigation
+            switchPage(page) {
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                
+                document.getElementById(`${page}Page`).classList.add('active');
+                event.target.closest('.nav-item').classList.add('active');
+                
+                this.currentPage = page;
+                
+                // Update navbar title
+                const titles = {
+                    'upload': 'Загрузка',
+                    'dictionary': 'Словарь',
+                    'settings': 'Настройки'
+                };
+                const navbarTitle = document.getElementById('navbarTitle');
+                if (navbarTitle) {
+                    navbarTitle.textContent = titles[page] || '';
+                }
+                
+                if (page === 'dictionary') {
+                    this.renderDictionary();
+                }
+                
+                // Close mobile menu
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.remove('show');
+                }
+            }
+            
+            toggleSidebar() {
+                document.getElementById('sidebar').classList.toggle('show');
+            }
+            
+            // File handling
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.handleFile(file);
+                }
+            }
+            
+            async handleFile(file) {
+                if (!file.type.startsWith('image/')) {
+                    this.showToast('Пожалуйста, выберите изображение', 'error');
+                    return;
+                }
+                
+                // Compress image if needed
+                const compressed = await this.compressImage(file);
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    this.currentImage = e.target.result;
+                    document.getElementById('imagePreview').src = this.currentImage;
+                    document.getElementById('uploadArea').style.display = 'none';
+                    document.getElementById('imagePreviewContainer').style.display = 'block';
+                };
+                
+                reader.readAsDataURL(compressed);
+            }
+            
+            async compressImage(file) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            let width = img.width;
+                            let height = img.height;
+                            const maxSize = 1920;
+                            
+                            if (width > height && width > maxSize) {
+                                height = (height * maxSize) / width;
+                                width = maxSize;
+                            } else if (height > maxSize) {
+                                width = (width * maxSize) / height;
+                                height = maxSize;
+                            }
+                            
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.drawImage(img, 0, 0, width, height);
+                            
+                            canvas.toBlob((blob) => {
+                                resolve(blob);
+                            }, 'image/jpeg', 0.9);
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+            
+            clearImage() {
+                this.currentImage = null;
+                document.getElementById('uploadArea').style.display = 'block';
+                document.getElementById('imagePreviewContainer').style.display = 'none';
+                document.getElementById('resultPreview').style.display = 'none';
+                document.getElementById('fileInput').value = '';
+            }
+            
+            // API calls
+            async analyzeImage() {
+                const settings = await this.getSettings();
+                if (!settings.apiKey) {
+                    this.showToast('Пожалуйста, настройте API ключ в настройках', 'error');
+                    this.switchPage('settings');
+                    return;
+                }
+                
+                document.getElementById('imagePreviewContainer').style.display = 'none';
+                document.getElementById('loadingContainer').style.display = 'block';
+                
+                try {
+                    this.currentResults = await this.api.analyze(this.currentImage, settings);
+                    this.displayResults();
+                } catch (error) {
+                    console.error('Analysis error:', error);
+                    this.showToast('Ошибка анализа: ' + error.message, 'error');
+                    
+                    // Show error details if JSON parsing failed
+                    if (error.message.includes('Invalid JSON')) {
+                        const errorHtml = `
+                            <div class="alert alert-danger">
+                                <h5>Ошибка чтения JSON</h5>
+                                <pre style="white-space: pre-wrap;">${error.message.replace('Invalid JSON response: ', '')}</pre>
+                            </div>
+                        `;
+                        document.getElementById('resultContent').innerHTML = errorHtml;
+                        document.getElementById('resultPreview').style.display = 'block';
+                    }
+                } finally {
+                    document.getElementById('loadingContainer').style.display = 'none';
+                    document.getElementById('imagePreviewContainer').style.display = 'block';
+                }
+            }
+            
+            displayResults() {
+                const resultContent = document.getElementById('resultContent');
+                resultContent.innerHTML = '';
+                
+                const summary = document.createElement('div');
+                summary.className = 'alert alert-success mb-3';
+                summary.innerHTML = `<i class="fas fa-check-circle"></i> Найдено элементов: <strong>${this.currentResults.length}</strong>`;
+                resultContent.appendChild(summary);
+                
+                const preview = document.createElement('div');
+                preview.style.maxHeight = '300px';
+                preview.style.overflowY = 'auto';
+                
+                this.currentResults.forEach(item => {
+                    const card = this.createWordCard(item, false);
+                    preview.appendChild(card);
+                });
+                
+                resultContent.appendChild(preview);
+                document.getElementById('resultPreview').style.display = 'block';
+            }
+            
+            async saveResults() {
+                if (!this.currentResults || this.currentResults.length === 0) return;
+                
+                // Add timestamp to each result
+                const timestamp = Date.now();
+                this.currentResults.forEach(item => {
+                    item.id = `${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
+                    item.timestamp = timestamp;
+                });
+                
+                this.dictionary.unshift(...this.currentResults);
+                await this.storage.save('dictionary', this.dictionary);
+                
+                this.showToast('Сохранено в словарь!', 'success');
+                this.clearImage();
+            }
+            
+            downloadResults() {
+                if (!this.currentResults || this.currentResults.length === 0) return;
+                this.exporter.export(this.currentResults, 'analysis_result.csv');
+            }
+            
+            // Dictionary operations
+            renderDictionary() {
+                const content = document.getElementById('dictionaryContent');
+                
+                if (this.dictionary.length === 0) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-book-open"></i>
+                            <h4>Словарь пуст</h4>
+                            <p>Загрузите изображение на странице "Загрузка" для анализа японского текста</p>
+                        </div>
+                    `;
+                    document.getElementById('fabContainer').style.display = 'none';
+                    return;
+                }
+                
+                content.innerHTML = '';
+                this.displayedItems = 0;
+                this.selectedItems.clear();
+                this.loadMoreItems();
+                
+                document.getElementById('fabContainer').style.display = 'flex';
+            }
+            
+            loadMoreItems() {
+                const content = document.getElementById('dictionaryContent');
+                const loader = document.getElementById('scrollLoader');
+                
+                if (this.displayedItems >= this.dictionary.length) {
+                    loader.classList.remove('active');
+                    return;
+                }
+                
+                loader.classList.add('active');
+                
+                setTimeout(() => {
+                    const endIndex = Math.min(this.displayedItems + this.itemsPerPage, this.dictionary.length);
+                    
+                    for (let i = this.displayedItems; i < endIndex; i++) {
+                        const card = this.createWordCard(this.dictionary[i], true);
+                        content.appendChild(card);
+                    }
+                    
+                    this.displayedItems = endIndex;
+                    loader.classList.remove('active');
+                }, 300);
+            }
+            
+            createWordCard(item, withCheckbox = false) {
+                const card = document.createElement('div');
+                card.className = 'word-card';
+                card.dataset.id = item.id;
+                
+                if (withCheckbox) {
+                    const checkboxWrapper = document.createElement('div');
+                    checkboxWrapper.className = 'checkbox-wrapper';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'form-check-input custom-checkbox';
+                    checkbox.onchange = () => this.toggleSelection(item.id);
+                    
+                    checkboxWrapper.appendChild(checkbox);
+                    card.appendChild(checkboxWrapper);
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'btn btn-sm btn-danger ms-2';
+                    deleteBtn.style.position = 'absolute';
+                    deleteBtn.style.top = '20px';
+                    deleteBtn.style.right = '60px';
+                    deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                    deleteBtn.onclick = () => this.deleteItem(item.id);
+                    card.appendChild(deleteBtn);
+                }
+                
+                const title = document.createElement('div');
+                title.className = 'word-title';
+                title.textContent = item.construction;
+                
+                const translation = document.createElement('div');
+                translation.className = 'word-translation';
+                translation.textContent = item.explanation;
+                
+                const example = document.createElement('div');
+                example.className = 'word-example';
+                example.textContent = item.example;
+                
+                card.appendChild(title);
+                card.appendChild(translation);
+                card.appendChild(example);
+                
+                return card;
+            }
+            
+            toggleSelection(id) {
+                const card = document.querySelector(`[data-id="${id}"]`);
+                const checkbox = card.querySelector('input[type="checkbox"]');
+                
+                if (checkbox.checked) {
+                    this.selectedItems.add(id);
+                    card.classList.add('selected');
+                } else {
+                    this.selectedItems.delete(id);
+                    card.classList.remove('selected');
+                }
+            }
+            
+            selectAll() {
+                document.querySelectorAll('.word-card').forEach(card => {
+                    const checkbox = card.querySelector('input[type="checkbox"]');
+                    if (checkbox && !checkbox.checked) {
+                        checkbox.checked = true;
+                        this.selectedItems.add(card.dataset.id);
+                        card.classList.add('selected');
+                    }
+                });
+            }
+            
+            deselectAll() {
+                document.querySelectorAll('.word-card').forEach(card => {
+                    const checkbox = card.querySelector('input[type="checkbox"]');
+                    if (checkbox && checkbox.checked) {
+                        checkbox.checked = false;
+                        card.classList.remove('selected');
+                    }
+                });
+                this.selectedItems.clear();
+            }
+            
+            async deleteItem(id) {
+                if (confirm('Удалить эту запись?')) {
+                    this.dictionary = this.dictionary.filter(item => item.id !== id);
+                    await this.storage.save('dictionary', this.dictionary);
+                    this.renderDictionary();
+                    this.showToast('Запись удалена', 'success');
+                }
+            }
+            
+            async deleteSelected() {
+                if (this.selectedItems.size === 0) {
+                    this.showToast('Выберите элементы для удаления', 'warning');
+                    return;
+                }
+                
+                if (confirm(`Удалить выбранные записи (${this.selectedItems.size})?`)) {
+                    this.dictionary = this.dictionary.filter(item => !this.selectedItems.has(item.id));
+                    await this.storage.save('dictionary', this.dictionary);
+                    this.renderDictionary();
+                    this.showToast('Записи удалены', 'success');
+                }
+            }
+            
+            downloadSelected() {
+                if (this.selectedItems.size === 0) {
+                    this.showToast('Выберите элементы для скачивания', 'warning');
+                    return;
+                }
+                
+                const selected = this.dictionary.filter(item => this.selectedItems.has(item.id));
+                this.exporter.export(selected, 'selected_items.csv');
+            }
+            
+            // Settings
+            async getSettings() {
+                const stored = await this.storage.load('settings');
+                return stored || {
+                    endpoint: 'https://api.openai.com/v1/chat/completions',
+                    model: 'gpt-4o',
+                    apiKey: ''
+                };
+            }
+            
+            async saveSettings() {
+                const settings = {
+                    endpoint: document.getElementById('apiEndpoint').value || 'https://api.openai.com/v1/chat/completions',
+                    model: document.getElementById('apiModel').value || 'gpt-4o',
+                    apiKey: document.getElementById('apiKey').value
+                };
+                
+                await this.storage.save('settings', settings);
+                this.showToast('Настройки сохранены', 'success');
+            }
+            
+            async testConnection() {
+                // Get current form values instead of saved settings
+                const settings = {
+                    endpoint: document.getElementById('apiEndpoint').value || 'https://api.openai.com/v1/chat/completions',
+                    model: document.getElementById('apiModel').value || 'gpt-4o',
+                    apiKey: document.getElementById('apiKey').value
+                };
+                
+                if (!settings.apiKey) {
+                    this.showToast('Введите API ключ', 'error');
+                    return;
+                }
+                
+                const btn = event.target;
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Проверка...';
+                
+                try {
+                    const success = await this.api.testConnection(settings);
+                    if (success) {
+                        this.showToast('Соединение успешно установлено!', 'success');
+                    } else {
+                        this.showToast('Ошибка соединения', 'error');
+                    }
+                } catch (error) {
+                    this.showToast('Ошибка: ' + error.message, 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            }
+            
+            toggleApiKeyVisibility() {
+                const input = document.getElementById('apiKey');
+                const icon = document.getElementById('apiKeyToggle');
+                
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.className = 'fas fa-eye-slash';
+                } else {
+                    input.type = 'password';
+                    icon.className = 'fas fa-eye';
+                }
+            }
+            
+            // UI Helpers
+            showToast(message, type = 'info') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = 'custom-toast';
+                
+                const icons = {
+                    success: 'fa-check-circle text-success',
+                    error: 'fa-exclamation-circle text-danger',
+                    warning: 'fa-exclamation-triangle text-warning',
+                    info: 'fa-info-circle text-primary'
+                };
+                
+                toast.innerHTML = `
+                    <i class="fas ${icons[type]}"></i>
+                    <span>${message}</span>
+                `;
+                
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.style.animation = 'slideIn 0.3s reverse';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        }
+        
+        // Initialize app
+        const app = new GrammarAnalyzerApp();
+    </script>
+</body>
+</html>
