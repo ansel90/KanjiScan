@@ -2,7 +2,7 @@
 
 [English](README.MD) | [Русский](README.RU.MD)
 
-Scan Japanese images, export to Anki
+Scan Japanese images, export to Anki cards
 
 ## Features
 
